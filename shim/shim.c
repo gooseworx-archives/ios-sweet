@@ -58,7 +58,7 @@ static inline void wr8(uintptr_t a, uint8_t v) { *(volatile uint8_t *)a = v; }
 
 extern char secondary_entry[];
 
-static const char *stage;	/* set at runtime: no absolute pointers in data */
+const char *stage;	/* set at runtime: no absolute pointers in data */
 static volatile uint64_t sec_mpidr[NR_CPUS];
 static volatile uint64_t sec_probe[4];	/* CPU1 redistributor write test */
 static volatile uint32_t irq_count, irq_other, irq_last;
@@ -104,7 +104,7 @@ static void delay_ms(unsigned ms)
 static void __attribute__((noreturn)) reset(unsigned after_s)
 {
 	con_skip();
-	con_str("RESET", after_s > 20 ? "in 40s" : "in 20s");
+	con_str("RESET", "in 10s");
 	delay_ms(after_s * 1000);
 	wr32(IMEM_RESTART_REASON, RESTART_BOOTLOADER);
 	__asm__ volatile("dsb sy" ::: "memory");
@@ -142,7 +142,7 @@ void exc_handler(uint64_t slot, uint64_t *regs)
 		irq_handler();
 		return;
 	}
-	con_clear(BLUE);
+	con_clear(BLACK);
 	const char *err = "SERROR";
 	int s = slot & 3;
 	if (s == 0) err = "SYNC";
@@ -158,7 +158,7 @@ void exc_handler(uint64_t slot, uint64_t *regs)
 	con_hex("X0", regs[0]);
 	con_hex("X1", regs[1]);
 	con_hex("X30", regs[29]);	/* stashed lr is just above the frame */
-	reset(40);
+	reset(10);
 }
 
 /* ---- SMP ---- */
@@ -374,7 +374,7 @@ void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
 	stage = "init";
-	con_clear(BLUE);
+	con_clear(BLACK);
 	con_str("iBoot", "iBoot-Android: Google Tensor GS101");
 	con_skip();
 
@@ -388,6 +388,7 @@ void shim_main(uint64_t dtb)
 	con_hex2("DTB", "at=", (uint32_t)dtb, "magic=", dtb ? __builtin_bswap32(rd32(dtb)) : 0);
 	con_skip();
 
+	stage = "loader";
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();
