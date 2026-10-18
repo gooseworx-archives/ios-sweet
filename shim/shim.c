@@ -392,6 +392,9 @@ void shim_main(uint64_t dtb)
 	con_str("LOADER", why);
 	con_skip();
 
+	test_ufs();
+	con_skip();
+
 	con_str("STATUS", "alive (waiting 120s)");
 	delay_ms(120000);
 	reset(20);
