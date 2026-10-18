@@ -12,8 +12,8 @@ import adt  # noqa: E402
 # DRAM on Tensor GS101 starts at 0x80000000 (8 GB total LPDDR5).
 # Reserved carveouts (GSA, TPU, AoC, ABL, Framebuffer) occupy 0x90000000 - 0x100000000.
 # Upper DRAM above 4GB (0x100000000) is contiguous and free of carveouts (~6 GB).
-PHYS_BASE = 0x80000000
-MEM_SIZE = 0x10000000  # 256 MiB early low memory
+PHYS_BASE = 0x82000000
+MEM_SIZE = 0x0e000000  # 224 MiB contiguous RAM before 0x90200000 carveouts
 HIGH_PHYS_BASE = 0x100000000
 HIGH_MEM_SIZE = 0x180000000  # 6 GiB upper memory bank
 

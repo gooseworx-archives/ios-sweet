@@ -38,12 +38,27 @@ end_hex=$($NM out/shim.elf | awk '$3=="_end"{print $1}')
 size=$(python3 -c "print(int('$end_hex', 16))")
 truncate -s "$size" out/Image
 
-# Ramdisk: an xnu payload (tools/mkpayload.py) if given as $1, else empty ramdisk
+# If an xnu payload (tools/mkpayload.py) is given as $1, embed it into Image
 if [ -n "${1:-}" ]; then
-	cp "$1" out/ramdisk.bin
-else
-	(cd out && rm -rf rd && mkdir rd && cd rd && find . | cpio -o -H newc --quiet | gzip -9 > ../ramdisk.bin)
+	python3 -c "
+with open('out/Image', 'ab') as f:
+    pos = f.tell()
+    pad = (4096 - (pos % 4096)) % 4096
+    f.write(b'\0' * pad)
+"
+	cat "$1" >> out/Image
+	python3 -c "
+import struct, os
+sz = os.path.getsize('out/Image')
+with open('out/Image', 'r+b') as f:
+    f.seek(16)
+    f.write(struct.pack('<Q', sz))
+"
+	echo "Embedded payload into Image (total size: $(wc -c < out/Image) bytes)"
 fi
+
+# Dummy empty ramdisk for Android boot v4 header
+(cd out && rm -rf rd && mkdir rd && cd rd && find . | cpio -o -H newc --quiet | gzip -9 > ../ramdisk.bin)
 
 # Compress kernel with legacy LZ4 as required by Pixel 6 ABL
 lz4 -c -l -12 --favor-decSpeed out/Image > out/Image.lz4

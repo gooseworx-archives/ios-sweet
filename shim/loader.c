@@ -76,18 +76,29 @@ static int magic_ok(const char *m)
 
 typedef void (*xnu_entry_t)(uint64_t boot_args_pa);
 
+extern char _end[];
+
 const char *loader_boot(uintptr_t dtb)
 {
 	uint64_t rd_start, rd_end;
+	const struct payload *p;
 
-	if (!fdt_chosen_u64(dtb, "linux,initrd-start", &rd_start) ||
-	    !fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end))
-		return "no initrd in /chosen";
-	con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
-
-	const struct payload *p = (const struct payload *)rd_start;
-	if (!magic_ok(p->magic))
-		return "no SWEETXNU payload";
+	/* 1. Check if payload is embedded directly at the end of iBoot-Android */
+	uintptr_t embedded = ((uintptr_t)_end + 4095) & ~4095UL;
+	if (magic_ok((const char *)embedded)) {
+		con_str("LOADER", "using embedded payload");
+		p = (const struct payload *)embedded;
+		rd_start = embedded;
+		rd_end = embedded + p->adt_off + p->adt_size;
+	} else if (fdt_chosen_u64(dtb, "linux,initrd-start", &rd_start) &&
+	           fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end)) {
+		con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
+		p = (const struct payload *)rd_start;
+		if (!magic_ok(p->magic))
+			return "no SWEETXNU payload";
+	} else {
+		return "no initrd or payload found";
+	}
 	if (p->version != 1 || (p->adt_off & 7) || (rd_start & 7))
 		return "bad payload header";
 
