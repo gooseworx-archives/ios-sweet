@@ -79,6 +79,13 @@ static uint32_t be32(const uint8_t *p)
 	return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
 }
 
+static inline void flush_range(uintptr_t start, uintptr_t end)
+{
+	for (uintptr_t a = start & ~63UL; a < end; a += 64)
+		__asm__ volatile("dc civac, %0" : : "r"(a) : "memory");
+	__asm__ volatile("dsb sy" ::: "memory");
+}
+
 /*
  * Issue one SCSI command (read direction or no data) in slot 0.
  * Returns 0 on success, otherwise a code describing the failure stage.
@@ -115,17 +122,30 @@ static uint32_t scsi(uint8_t lun, const uint8_t *cdb, unsigned cdb_len, void *bu
 		ucd.prdt[0].dbc = len - 1;
 		utrl[0].prdt = (1024u / 4) << 16 | 1;
 	}
-	__asm__ volatile("dsb sy" ::: "memory");
 
+	flush_range((uintptr_t)&utrl[0], (uintptr_t)&utrl[0] + sizeof(utrl[0]));
+	flush_range((uintptr_t)&ucd, (uintptr_t)&ucd + sizeof(ucd));
+	if (len)
+		flush_range((uintptr_t)buf, (uintptr_t)buf + len);
+
+	ufs_wr(REG_IS, 0xffffffff);
 	ufs_wr(REG_UTRLDBR, 1);
+
+	uint64_t frq;
+	__asm__ volatile("mrs %0, cntfrq_el0" : "=r"(frq));
 	uint64_t start = ticks();
 	while (ufs_rd(REG_UTRLDBR) & 1) {
-		if (ticks() - start > 19200000) {	/* 1 s */
-			ufs_wr(REG_UTRLCLR, ~1u);	/* clear slot 0 (write 0 to the bit) */
+		if (ticks() - start > frq * 2) {	/* 2 s */
+			ufs_wr(REG_UTRLCLR, ~1u);	/* clear slot 0 */
 			return 1;			/* timeout */
 		}
 	}
-	__asm__ volatile("dsb sy" ::: "memory");
+
+	flush_range((uintptr_t)&utrl[0], (uintptr_t)&utrl[0] + sizeof(utrl[0]));
+	flush_range((uintptr_t)&ucd, (uintptr_t)&ucd + sizeof(ucd));
+	if (len)
+		flush_range((uintptr_t)buf, (uintptr_t)buf + len);
+
 	*ocs_out = utrl[0].dw2 & 0xff;
 	*status_out = ucd.resp[7];		/* SCSI status in the response UPIU */
 	if (*ocs_out)
@@ -222,11 +242,16 @@ void test_ufs(void)
 
 	/* Take over the transfer request list: stop, point at ours, run. */
 	ufs_wr(REG_UTRLRSR, 0);
+	for (int i = 0; i < 100000 && (ufs_rd(REG_UTRLRSR) & 1); i++)
+		;
 	uintptr_t list = (uintptr_t)utrl;
 	ufs_wr(REG_UTRLBA, (uint32_t)list);
 	ufs_wr(REG_UTRLBAU, (uint32_t)(list >> 32));
 	ufs_wr(REG_UTRLRSR, 1);
+	for (int i = 0; i < 100000 && !(ufs_rd(REG_UTRLRSR) & 1); i++)
+		;
 	con_hex2("UFS", "ours=", (uint32_t)list, "rsr=", ufs_rd(REG_UTRLRSR));
+	con_hex2("SYSREG", "710=", *(volatile uint32_t *)0x14420710UL, "is=", ufs_rd(REG_IS));
 	/*
 	 * Never ring a doorbell unless the host really uses our list: otherwise
 	 * it would execute whatever ABL left in its own slot 0 (maybe a write).

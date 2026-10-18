@@ -395,8 +395,8 @@ void shim_main(uint64_t dtb)
 	test_ufs();
 	con_skip();
 
-	con_str("STATUS", "alive (waiting 120s)");
-	delay_ms(120000);
+	con_str("STATUS", "alive (waiting 30s)");
+	delay_ms(30000);
 	reset(20);
 
 	stage = "fill off";
