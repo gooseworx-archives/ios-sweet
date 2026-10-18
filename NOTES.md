@@ -21,10 +21,11 @@
   - Verified XNU build (`xnu-8796.141.3`, Darwin 22.6.0) is the exact match for iOS 16.7.16 (`20H392` / iPhone X / `D22AP`).
   - Extracted real iPhone X Apple Device Tree (`research/ipsw-x/d22ap.adt`) directly from `ipsw/` using native macOS `libcompression` (LZFSE `bvx2` decompress).
   - Built Pixel 6 ADT (`dtb/pixel6.adt`) containing GS101 GICv3 (`0x10400000`, `0x10440000`), 24.576 MHz timer, splash framebuffer, 8 cores, and full real `/product` properties.
-  - Packaged XNU kernel + ADT into `shim/out/payload-test.bin` and built Android boot v4 image `shim/out/shim-boot.img` (16.6 MB).
+  - **Embedded Payload:** Pixel 6 ABL on `boot_img_hdr_v4` ignores the ramdisk in `boot.img` and loads the on-flash `vendor_boot` ramdisk instead. Solved by embedding `SWEETXNU` directly into `out/Image` right after `_end` (aligned to 4096) and updating the arm64 header `image_size`.
+  - Packaged XNU kernel + ADT into `shim/out/shim-boot.img` (6.8 MB compressed with legacy LZ4).
 - **Next Concrete Actions:**
   1. Boot `fastboot boot shim/out/shim-boot.img` and observe XNU kernel handover.
-  2. Watch for `BOOTARG pa=... top=...` and `XNU jumping (fbcon clears screen)`.
+  2. Watch for `LOADER: using embedded payload`, `BOOTARG pa=...`, and `XNU jumping (fbcon clears screen)`.
   3. Extract rootfs DMG from IPSW (`tools/mkiosroot_mac.sh`).
 
 ---
