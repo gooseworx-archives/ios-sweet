@@ -3,15 +3,15 @@
 ## Active Handoff (2026-10-18)
 - **Target:** Google Pixel 6 (`oriole`, GS101 SoC) booting Apple iOS 16.7.16 (`20H392` / `iPhone10,3` / `D22AP`).
 - **Bootloader Name:** Officially named **`iBoot-Android`** (lives in `shim/`).
-- **Display Status & Critical Finding:**
-  - PostmarketOS GS101 bringup (`/Users/doriandelvalle/Documents/nura-6/pmaports/device/testing/soc-google-gs101/00-enable-fb.sh`) writes `0x3061` to DECON register `0x1c300030` to trigger continuous scanout/refresh from the splash framebuffer `0xfac00000` to the Samsung AMOLED panel.
-  - Implemented in `shim/console.c` (`decon_trigger` on `con_clear` and after every line print).
-- **Kernel Compression Status & Critical Finding:**
-  - Pixel 6 ABL expects the kernel in `boot.img` (header v4) to be **legacy LZ4 compressed** (`02 21 4c 18`).
-  - Added `lz4 -c -l -12 --favor-decSpeed out/Image > out/Image.lz4` in `shim/build.sh`.
-- **Bootloader Configuration (`bootmac`):**
-  - Observed in `/Users/doriandelvalle/Documents/nura-6/main/bootmac`: ABL provides device tree configuration (such as MAC addresses) under `/chosen/config`.
-- **Current Artifact:** `shim/out/shim-boot.img` (built and verified with LZ4 payload and DECON refresh).
+- **🎉 MILESTONE: DISPLAY OUT VERIFIED ON PIXEL 6:**
+  - `iBoot-Android` successfully executed by Pixel 6 ABL (`fastboot boot shim/out/shim-boot.img`).
+  - Blue diagnostic console rendered on the device's 1080x2400 AMOLED display.
+  - DECON trigger write (`*(volatile uint32_t *)0x1c300030 = 0x3061`) unpauses scanout to the panel.
+  - Kernel payload wrapped in Android boot v4 with legacy LZ4 compression (`lz4 -c -l -12 --favor-decSpeed`).
+- **Next Concrete Actions:**
+  1. Record diagnostic values reported on screen (CPU MIDR/MPIDR, PSCI version, DTB address).
+  2. Implement GS101 UFS driver in `iBoot-Android` so it can read/write partitions (`userdata`) without aborting.
+  3. Prepare local XNU kernel build using Xcode toolchain from `/Volumes/1/Applications/Xcode-beta.app`.
 
 ---
 
