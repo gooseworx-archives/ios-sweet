@@ -17,10 +17,15 @@
 - **🎉 MILESTONE: UFS STORAGE CONTROLLER VERIFIED ON PIXEL 6:**
   - Internal UFSHCI controller at `0x14700000` is active and clocked from ABL.
   - `iBoot-Android` successfully took over the UTRL descriptor list, issued SCSI commands on LUN 0, read the protective MBR and GPT partition table, and enumerated partition entries.
+- **🎉 MILESTONE: FIRST XNU KERNEL BOOT IMAGE PACKAGED:**
+  - Verified XNU build (`xnu-8796.141.3`, Darwin 22.6.0) is the exact match for iOS 16.7.16 (`20H392` / iPhone X / `D22AP`).
+  - Extracted real iPhone X Apple Device Tree (`research/ipsw-x/d22ap.adt`) directly from `ipsw/` using native macOS `libcompression` (LZFSE `bvx2` decompress).
+  - Built Pixel 6 ADT (`dtb/pixel6.adt`) containing GS101 GICv3 (`0x10400000`, `0x10440000`), 24.576 MHz timer, splash framebuffer, 8 cores, and full real `/product` properties.
+  - Packaged XNU kernel + ADT into `shim/out/payload-test.bin` and built Android boot v4 image `shim/out/shim-boot.img` (16.6 MB).
 - **Next Concrete Actions:**
-  1. Record any specific partition details printed on screen (e.g. `userdata` LBA / size).
-  2. Setup and build XNU kernel (`xnu-8796`) locally using the Xcode 27 toolchain (`/Volumes/1/Applications/Xcode-beta.app`).
-  3. Prepare Apple ADT (`pixel6.adt`) and package payload for first XNU kernel boot test.
+  1. Boot `fastboot boot shim/out/shim-boot.img` and observe XNU kernel handover.
+  2. Watch for `BOOTARG pa=... top=...` and `XNU jumping (fbcon clears screen)`.
+  3. Extract rootfs DMG from IPSW (`tools/mkiosroot_mac.sh`).
 
 ---
 
