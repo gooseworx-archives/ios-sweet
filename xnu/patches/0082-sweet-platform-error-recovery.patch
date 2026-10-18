@@ -1,0 +1,26 @@
+--- a/osfmk/arm64/sleh.c
++++ b/osfmk/arm64/sleh.c
+@@ -450,12 +450,22 @@
+ 
+ 	(void)source;
+ 	cpu_data_t *cdp = getCpuDatap();
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	kprintf("SWEET: platform error source=%d esr=0x%08x far=0x%016lx pc=0x%016llx lr=0x%016llx\n",
++	    source, esr, far, get_saved_state_pc(state), get_saved_state_lr(state));
++	if (source == PLAT_ERR_SRC_ASYNC) {
++		/* Non-fatal SError on GS101: acknowledge and ignore so boot continues */
++		return;
++	}
++#endif
++
+ 	if (PE_handle_platform_error(far)) {
+ 		return;
+ 	} else if (cdp->platform_error_handler != NULL) {
+ 		cdp->platform_error_handler(cdp->cpu_id, far);
+ 	} else {
+-		arm64_implementation_specific_error(state, esr, far);
++		panic_plain("Unhandled implementation specific error: esr=0x%08x far=0x%016lx pc=0x%016llx lr=0x%016llx\n",
++		    esr, far, get_saved_state_pc(state), get_saved_state_lr(state));
+ 	}
+ }
