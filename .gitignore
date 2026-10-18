@@ -7,4 +7,8 @@ research/
 shim/out/
 xnu/out/
 xnu/out-*/
+# Apple IPSW and extracted artifacts
+ipsw/
+*.ipsw
+*.dmg
 __pycache__/
