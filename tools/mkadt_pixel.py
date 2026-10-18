@@ -51,8 +51,8 @@ def d22ap_product(path=D22AP_ADT):
         return None
     root, _ = adt.parse(open(path, 'rb').read())
     for c in root.children:
-        if dict((k, v) for k, f, v in c.props).get('name') == b'product\0':
-            return [(k, v) for k, v in c.props if not f and k not in ('name', 'AAPL,phandle')]
+        if c.name == 'product':
+            return [(p[0], p[2]) for p in c.props if not p[1] and p[0] not in ('name', 'AAPL,phandle')]
     return None
 
 
@@ -196,7 +196,7 @@ def build(seed=None, qemu=False, highmem=False):
 
     return node('device-tree', [
         ph(),
-        ('compatible', cstr('D22AP') + cstr('iPhone10,3') + cstr('google,oriole') + cstr('google,gs101') + cstr('AppleARM')),
+        ('compatible', cstr('D22AP') + cstr('iPhone10,3') + cstr('xiaomi,sweet') + cstr('google,oriole') + cstr('google,gs101') + cstr('AppleARM')),
         ('model', cstr('iPhone10,3')),
         ('target-type', cstr('D22')),
         ('target-sub-type', cstr('D22AP')),
