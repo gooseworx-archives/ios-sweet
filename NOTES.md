@@ -17,16 +17,15 @@
 - **🎉 MILESTONE: UFS STORAGE CONTROLLER VERIFIED ON PIXEL 6:**
   - Internal UFSHCI controller at `0x14700000` is active and clocked from ABL.
   - `iBoot-Android` successfully took over the UTRL descriptor list, issued SCSI commands on LUN 0, read the protective MBR and GPT partition table, and enumerated partition entries.
-- **🎉 MILESTONE: FIRST XNU KERNEL BOOT IMAGE PACKAGED:**
-  - Verified XNU build (`xnu-8796.141.3`, Darwin 22.6.0) is the exact match for iOS 16.7.16 (`20H392` / iPhone X / `D22AP`).
-  - Extracted real iPhone X Apple Device Tree (`research/ipsw-x/d22ap.adt`) directly from `ipsw/` using native macOS `libcompression` (LZFSE `bvx2` decompress).
-  - Built Pixel 6 ADT (`dtb/pixel6.adt`) containing GS101 GICv3 (`0x10400000`, `0x10440000`), 24.576 MHz timer, splash framebuffer, 8 cores, and full real `/product` properties.
-  - **Embedded Payload & PC-relative Fix:** Pixel 6 ABL ignores ramdisk in boot.img. Embedded `SWEETXNU` into `Image` at `_end`. Fixed link-time absolute `_end` (0x2e000) Data Abort by using PC-relative `adr` instruction (`get_end_runtime()`).
-  - Packaged XNU kernel + ADT into `shim/out/shim-boot.img` (6.8 MB compressed with legacy LZ4).
+- **🎉🎉 HISTORIC MILESTONE: APPLE XNU KERNEL BOOTS AND RUNS ON PIXEL 6 SCREEN:**
+  - `iBoot-Android` successfully handed off execution to XNU kernel (`start.s`).
+  - XNU early virtual memory bootstrap (`vm_page_bootstrap`), ARM64 pmap (`pmap_bootstrap` 16K pages), machine startup, and early framebuffer console (`fbcon`) initialized.
+  - Apple XNU kernel console is actively rendering on the Pixel 6 1080x2400 AMOLED display!
+  - Confirmed log output: `ipc pthread priority is initialized`, reached `debug_log_init`.
 - **Next Concrete Actions:**
-  1. Boot `fastboot boot shim/out/shim-boot.img` and observe XNU kernel handover.
-  2. Watch for `LOADER: using embedded payload`, `PAYLOAD: 0x8002e000`, `BOOTARG pa=...`, and `XNU jumping (fbcon clears screen)`.
-  3. Extract rootfs DMG from IPSW (`tools/mkiosroot_mac.sh`).
+  1. Record the exact panic message / backtrace following `debug_log_init`.
+  2. Extract iOS 16 root filesystem DMG from `ipsw/` (`tools/mkiosroot_mac.sh`).
+  3. Prepare ramdisk / root filesystem mount so XNU can proceed past mountroot to userland.
 
 ---
 
