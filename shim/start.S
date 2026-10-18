@@ -20,28 +20,97 @@ _head:
 	.globl _start
 _start:
 	msr	daifset, #0xf
-	mov	x19, x0			/* DTB pointer from ABL */
+	mov	x19, x0			/* Preserve DTB pointer from ABL */
+
+	/* Check CurrentEL: Google Tensor ABL enters at EL2 */
+	mrs	x0, CurrentEL
+	cmp	x0, #(2 << 2)		/* 0x8 = EL2 */
+	b.ne	.Lrunning_el1
+
+	/* Set vectors for EL2 so any trap doesn't crash to ABL */
+	adr	x1, vectors
+	msr	vbar_el2, x1
+
+	/* HCR_EL2: RW=1 (64-bit EL1), all traps disabled */
+	mov	x0, #(1 << 31)
+	msr	hcr_el2, x0
+
+	/* CNTHCTL_EL2: allow EL1 access to timers */
+	mov	x0, #0x3
+	msr	cnthctl_el2, x0
+	msr	cntvoff_el2, xzr
+
+	/* CPTR_EL2: don't trap FP/SIMD to EL2 */
+	msr	cptr_el2, xzr
+
+	/* Enable GIC System Register Access at EL2 if available */
+	mrs	x0, id_aa64pfr0_el1
+	ubfx	x0, x0, #24, #4
+	cbz	x0, 1f
+	mov	x0, #0xf		/* SRE=1, DFB=1, DIB=1, Enable=1 */
+	msr	icc_sre_el2, x0
+1:
+	/* Prepare SPSR_EL2 for ERET to EL1 with SP_EL1 (EL1h = 0b0101) */
+	mov	x0, #0x3c5		/* D, A, I, F masked, mode EL1h */
+	msr	spsr_el2, x0
+
+	adr	x0, .Lrunning_el1
+	msr	elr_el2, x0
+	isb
+	eret
+
+.Lrunning_el1:
+	msr	daifset, #0xf
 	msr	spsel, #1
 	adr	x1, _stack_top
 	mov	sp, x1
 	adr	x1, vectors
 	msr	vbar_el1, x1
 	isb
+
 	/* zero .bss */
 	adr	x1, _bss_start
 	adr	x2, _bss_end
-1:	cmp	x1, x2
-	b.hs	2f
+2:	cmp	x1, x2
+	b.hs	3f
 	str	xzr, [x1], #8
-	b	1b
-2:	mov	x0, x19
+	b	2b
+3:	mov	x0, x19
 	bl	shim_main
-3:	wfe
-	b	3b
+4:	wfe
+	b	4b
 
 /* PSCI CPU_ON target. x0 = context id = cpu index (1..7). */
 	.globl secondary_entry
 secondary_entry:
+	msr	daifset, #0xf
+	mrs	x2, CurrentEL
+	cmp	x2, #(2 << 2)
+	b.ne	.Lsec_el1
+
+	/* Drop secondary core from EL2 to EL1 */
+	adr	x1, vectors
+	msr	vbar_el2, x1
+	mov	x2, #(1 << 31)
+	msr	hcr_el2, x2
+	mov	x2, #0x3
+	msr	cnthctl_el2, x2
+	msr	cntvoff_el2, xzr
+	msr	cptr_el2, xzr
+	mrs	x2, id_aa64pfr0_el1
+	ubfx	x2, x2, #24, #4
+	cbz	x2, 5f
+	mov	x2, #0xf
+	msr	icc_sre_el2, x2
+5:
+	mov	x2, #0x3c5
+	msr	spsr_el2, x2
+	adr	x2, .Lsec_el1
+	msr	elr_el2, x2
+	isb
+	eret
+
+.Lsec_el1:
 	msr	daifset, #0xf
 	msr	spsel, #1
 	adr	x1, _sec_stacks
@@ -52,8 +121,8 @@ secondary_entry:
 	msr	vbar_el1, x1
 	isb
 	bl	secondary_main
-4:	wfe
-	b	4b
+6:	wfe
+	b	6b
 
 /*
  * Exception vectors. Each slot stashes x29/x30, loads its slot number

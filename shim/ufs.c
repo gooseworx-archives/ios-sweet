@@ -13,7 +13,7 @@
 #include "console.h"
 #include "ufs.h"
 
-#define UFS_BASE	0x01d84000UL	/* ufshc@1d84000, sweet live FDT */
+#define UFS_BASE	0x14700000UL	/* ufs@14700000, Pixel 6 Tensor GS101 */
 
 #define REG_CAP		0x00
 #define REG_VER		0x08
@@ -163,6 +163,15 @@ static const char *fs_type(uint32_t lba)
 	return "other";
 }
 
+static int strcmp(const char *a, const char *b)
+{
+	while (*a && *a == *b) {
+		a++;
+		b++;
+	}
+	return *(const unsigned char *)a - *(const unsigned char *)b;
+}
+
 /* One line per GPT entry of at least 64 MiB: name, first LBA, size in MiB (4K blocks). */
 static void list_partitions(uint32_t entry_lba, uint32_t nent)
 {
@@ -186,8 +195,8 @@ static void list_partitions(uint32_t entry_lba, uint32_t nent)
 		if (((last - first + 1) >> 8) < 64)	/* keep the screen to the big ones */
 			continue;
 		con_hex2(name, "lba=", (uint32_t)first, "MiB=", (uint32_t)((last - first + 1) >> 8));
-		if (!__builtin_strcmp(name, "userdata") || !__builtin_strcmp(name, "cust") ||
-		    !__builtin_strcmp(name, "cache"))
+		if (!strcmp(name, "userdata") || !strcmp(name, "cust") ||
+		    !strcmp(name, "cache"))
 			con_str(" fs", fs_type((uint32_t)first));
 	}
 }

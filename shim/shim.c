@@ -16,8 +16,8 @@
 #define RESTART_BOOTLOADER	0x77665500U
 #define PSHOLD			0x0c264000UL
 
-#define GICD_BASE		0x17a00000UL
-#define GICR_BASE		0x17a60000UL
+#define GICD_BASE		0x10400000UL	/* Tensor GS101 GICv3 Distributor */
+#define GICR_BASE		0x10440000UL	/* Tensor GS101 GICv3 Redistributors */
 #define GICR_SIZE		0x100000UL
 #define GICR_PE_SIZE		0x20000UL
 #define GICR_TYPER		0x08
@@ -30,8 +30,8 @@
 #define GICR_ISPENDR0		(GICR_SGI + 0x200)
 #define GICR_ISACTIVER0		(GICR_SGI + 0x300)
 #define GICR_ICFGR1		(GICR_SGI + 0xc04)
-#define VTIMER_INTID		19	/* DT: <GIC_PPI 3 ...>, not the usual 27 */
-#define PTIMER_INTID		18	/* DT: <GIC_PPI 2 ...> */
+#define VTIMER_INTID		27	/* ARM generic timer PPI 11 */
+#define PTIMER_INTID		30	/* ARM generic timer PPI 14 */
 #define SGI_INTID		1
 
 #define PSCI_VERSION		0x84000000UL
@@ -143,12 +143,12 @@ void exc_handler(uint64_t slot, uint64_t *regs)
 		return;
 	}
 	con_clear(BLUE);
-	switch (slot & 3) {
-	case 0: con_str("PANIC", "SYNC"); break;
-	case 1: con_str("PANIC", "IRQ"); break;
-	case 2: con_str("PANIC", "FIQ"); break;
-	default: con_str("PANIC", "SERROR"); break;
-	}
+	const char *err = "SERROR";
+	int s = slot & 3;
+	if (s == 0) err = "SYNC";
+	else if (s == 1) err = "IRQ";
+	else if (s == 2) err = "FIQ";
+	con_str("PANIC", err);
 	con_hex2("SLOT", "n=", slot, "cpu=", rsr("mpidr_el1"));
 	con_str("STAGE", stage);
 	con_hex("ESR", rsr("esr_el1"));
@@ -373,23 +373,27 @@ static uint32_t to_us(uint64_t ticks)
 void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
-
-	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
-	stage = "loader";
-	con_clear(RED);
-	con_str("SHIM", "sweet milestone 4: xnu loader");
+	stage = "init";
+	con_clear(BLUE);
+	con_str("iBoot", "iBoot-Android: Google Tensor GS101");
 	con_skip();
+
+	uint64_t midr = rsr("midr_el1");
+	uint64_t mpidr = rsr("mpidr_el1");
+	con_hex2("CPU", "midr=", (uint32_t)midr, "mpidr=", (uint32_t)mpidr);
+
+	uint64_t psci_ver = smc(PSCI_VERSION, 0, 0, 0);
+	con_hex2("PSCI", "ver=", (uint32_t)psci_ver, "smccc=", (uint32_t)smc(SMCCC_VERSION, 0, 0, 0));
+
+	con_hex2("DTB", "at=", (uint32_t)dtb, "magic=", dtb ? __builtin_bswap32(rd32(dtb)) : 0);
+	con_skip();
+
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();
 
-	/* No payload: probe the internal UFS while the MMU is still off. */
-	stage = "ufs";
-	test_ufs();
-	con_skip();
-	/* Keep the probe results on screen (later tests clear it); reset after 3 min. */
-	con_str("UFS", "probe done, reset in ~3 min");
-	delay_ms(180000);
+	con_str("STATUS", "alive (waiting 120s)");
+	delay_ms(120000);
 	reset(20);
 
 	stage = "fill off";

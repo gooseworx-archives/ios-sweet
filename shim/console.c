@@ -15,6 +15,29 @@ volatile uint32_t *con_fb = (volatile uint32_t *)FB_BASE;
 static uint32_t con_bg;
 static int row;
 
+#ifndef HOST_TEST
+static inline void flush_dcache_range(uintptr_t start, uintptr_t end)
+{
+	for (uintptr_t a = start & ~63UL; a < end; a += 64)
+		__asm__ volatile("dc civac, %0" : : "r"(a) : "memory");
+	__asm__ volatile("dsb sy" ::: "memory");
+}
+
+/*
+ * Tensor GS101 DECON display controller:
+ * In pmaports/device/testing/soc-google-gs101/00-enable-fb.sh:
+ * Writing 0x3061 to DECON offset 0x30 (0x1c300030) enables framebuffer refreshing.
+ */
+static inline void decon_trigger(void)
+{
+	*(volatile uint32_t *)0x1c300030UL = 0x3061;
+	__asm__ volatile("dsb sy" ::: "memory");
+}
+#else
+static inline void flush_dcache_range(uintptr_t start, uintptr_t end) { (void)start; (void)end; }
+static inline void decon_trigger(void) {}
+#endif
+
 void con_clear(uint32_t bg)
 {
 	for (int y = 0; y < FB_H; y++) {
@@ -24,6 +47,8 @@ void con_clear(uint32_t bg)
 	}
 	con_bg = bg;
 	row = 0;
+	flush_dcache_range((uintptr_t)con_fb, (uintptr_t)con_fb + (uintptr_t)FB_STRIDE * FB_H);
+	decon_trigger();
 }
 
 static void put_char(int col, char ch, uint32_t fg)
@@ -44,6 +69,10 @@ static void put_char(int col, char ch, uint32_t fg)
 					p[sx] = c;
 			}
 		}
+	for (int gy = 0; gy < CH_H; gy++) {
+		volatile uint32_t *p = con_fb + (y0 + gy) * (FB_STRIDE / 4) + x0;
+		flush_dcache_range((uintptr_t)p, (uintptr_t)p + CH_W * 4);
+	}
 }
 
 static int put_str(int col, const char *s, uint32_t fg)
@@ -71,6 +100,7 @@ void con_str(const char *label, const char *s)
 	put_str(0, label, YELLOW);
 	put_str(LABEL_COLS, s, WHITE);
 	row++;
+	decon_trigger();
 }
 
 void con_hex(const char *label, uint64_t v)
@@ -94,4 +124,5 @@ void con_hex2(const char *label, const char *a, uint32_t va, const char *b, uint
 		put_str(col, buf, WHITE);
 	}
 	row++;
+	decon_trigger();
 }
