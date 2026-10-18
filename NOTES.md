@@ -14,9 +14,13 @@
   - **DTB:** Base at `0x8a000000`, `magic=0xd00dfeed` (valid FDT).
   - **Initrd / Ramdisk:** `0x86000000` - `0x86c5d2b6`.
   - **Loader:** Reported `no SWEETXNU payload` correctly for empty ramdisk test image.
+- **🎉 MILESTONE: UFS STORAGE CONTROLLER VERIFIED ON PIXEL 6:**
+  - Internal UFSHCI controller at `0x14700000` is active and clocked from ABL.
+  - `iBoot-Android` successfully took over the UTRL descriptor list, issued SCSI commands on LUN 0, read the protective MBR and GPT partition table, and enumerated partition entries.
 - **Next Concrete Actions:**
-  1. Implement GS101 UFS driver in `iBoot-Android` so it can read/write partitions (`userdata`) without aborting.
-  2. Prepare local XNU kernel build using Xcode toolchain from `/Volumes/1/Applications/Xcode-beta.app`.
+  1. Record any specific partition details printed on screen (e.g. `userdata` LBA / size).
+  2. Setup and build XNU kernel (`xnu-8796`) locally using the Xcode 27 toolchain (`/Volumes/1/Applications/Xcode-beta.app`).
+  3. Prepare Apple ADT (`pixel6.adt`) and package payload for first XNU kernel boot test.
 
 ---
 
