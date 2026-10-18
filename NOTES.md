@@ -8,10 +8,15 @@
   - Blue diagnostic console rendered on the device's 1080x2400 AMOLED display.
   - DECON trigger write (`*(volatile uint32_t *)0x1c300030 = 0x3061`) unpauses scanout to the panel.
   - Kernel payload wrapped in Android boot v4 with legacy LZ4 compression (`lz4 -c -l -12 --favor-decSpeed`).
+- **Verified Hardware Observations (Screen Dump):**
+  - **CPU:** `midr=0x412fd050` (ARM Cortex-A55 r2p0 little core), `mpidr=0x81000000` (Cluster 0, Core 0, 64-bit MP).
+  - **PSCI / SMCCC:** `ver=0x00010001` (PSCI 1.1), `smccc=0x00010001` (SMCCC 1.1). PSCI CPU_ON and resets are standard.
+  - **DTB:** Base at `0x8a000000`, `magic=0xd00dfeed` (valid FDT).
+  - **Initrd / Ramdisk:** `0x86000000` - `0x86c5d2b6`.
+  - **Loader:** Reported `no SWEETXNU payload` correctly for empty ramdisk test image.
 - **Next Concrete Actions:**
-  1. Record diagnostic values reported on screen (CPU MIDR/MPIDR, PSCI version, DTB address).
-  2. Implement GS101 UFS driver in `iBoot-Android` so it can read/write partitions (`userdata`) without aborting.
-  3. Prepare local XNU kernel build using Xcode toolchain from `/Volumes/1/Applications/Xcode-beta.app`.
+  1. Implement GS101 UFS driver in `iBoot-Android` so it can read/write partitions (`userdata`) without aborting.
+  2. Prepare local XNU kernel build using Xcode toolchain from `/Volumes/1/Applications/Xcode-beta.app`.
 
 ---
 
