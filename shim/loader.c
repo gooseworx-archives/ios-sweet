@@ -78,15 +78,24 @@ typedef void (*xnu_entry_t)(uint64_t boot_args_pa);
 
 extern char _end[];
 
+static inline uintptr_t get_end_runtime(void)
+{
+	uintptr_t p;
+	__asm__ volatile("adr %0, _end" : "=r"(p));
+	return p;
+}
+
 const char *loader_boot(uintptr_t dtb)
 {
 	uint64_t rd_start, rd_end;
 	const struct payload *p;
 
 	/* 1. Check if payload is embedded directly at the end of iBoot-Android */
-	uintptr_t embedded = ((uintptr_t)_end + 4095) & ~4095UL;
+	uintptr_t end_addr = get_end_runtime();
+	uintptr_t embedded = (end_addr + 4095) & ~4095UL;
 	if (magic_ok((const char *)embedded)) {
 		con_str("LOADER", "using embedded payload");
+		con_hex("PAYLOAD", embedded);
 		p = (const struct payload *)embedded;
 		rd_start = embedded;
 		rd_end = embedded + p->adt_off + p->adt_size;
